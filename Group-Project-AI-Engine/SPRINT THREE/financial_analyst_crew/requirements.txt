@@ -1,0 +1,17 @@
+pandas
+numpy
+yfinance
+scikit-learn
+tensorflow
+matplotlib
+flask
+flask-cors
+langchain-groq
+langchain-ollama
+langchain-openai
+crewai
+pydantic
+firebase-admin
+python-dotenv
+PyYAML
+gunicorn

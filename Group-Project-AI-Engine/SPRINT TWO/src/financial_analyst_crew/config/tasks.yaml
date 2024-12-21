@@ -1,0 +1,52 @@
+research_stock_task:
+  description: >
+    Gather and analyze comprehensive data on {asset_name}. Include:
+      1. Data from a minimum of four reliable and accredited sources 
+      2. Current and historical price data
+      3. Market trends and patterns
+      4. News and sentiment analysis
+      5. Company fundamentals (for stocks) or blockchain metrics (for crypto)
+      6. Key competitors and market positioning
+      7. Source citations
+
+  expected_output: >
+    A comprehensive compilation of findings in a structured format.
+
+analyze_stock_task:
+  description: >
+    Using the research data, calculate and interpret the following financial metrics for {asset_name}:
+      1. Profitability Ratios
+      2. Liquidity Ratios for stocks or on-chain metrics for crypto
+      3. Solvency Ratios
+      4. Efficiency Ratios
+      5. Market Value Ratios
+      6. Growth Metrics
+    Include possible red flags or potential pitfalls 
+    Show historical trends 
+
+  expected_output: >
+    A detailed summary of these metrics and what indicate about the specified asset. 
+
+make_decision_task:
+  description: >
+    Based on the research and financial analysis, generate a buy, sell, or hold recommendation for {asset_name}. Your task should:
+      1. Evaluate all data from the research and accounting tasks
+      2. Compare current metrics to historical averages and industry benchmarks
+      3. Assess risk factors and potential rewards
+      4. Consider current market conditions and economic indicators
+      5. Provide a clear recommendation with supporting rationale
+      6. Include a confidence level for your recommendation
+
+  expected_output: >
+    A detailed and well informed recommendation in a structured format
+
+output_task:
+  description: >
+     Create a well-formatted, engaging report summarizing the findings and recommendation for {asset_name}. Your report should:
+      1. Synthesize information from all previous tasks (research, accounting, and recommendation)
+      2. Have clear sections: Overview, Research Findings, Financial Analysis, and Recommendation
+      3. Use bullet points, tables, or charts to present data clearly
+      4. Include relevant disclaimers or risk warnings
+      5. Provide a concise executive summary
+  expected_output: >
+    A comprehensive yet concise report with necessary information in the provided format 

@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "financial_analyst_crew"
+version = "0.1.0"
+description = "AI-Engine"
+authors = ["Ciara Dalton"]
+packages = [
+    { include = "src" }, {include = "config"}
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10, <=3.13"
+crewai = ">=0.11.0"  
+langchain = ">=0.1.0"
+langchain-core = ">=0.1.0"
+langchain-groq = ">=0.1.0"
+langchain-openai = ">=0.0.2"
+langchain-community = ">=0.0.1"
+langchain-ollama = ">=0.1.2" 
+gunicorn = "^20.1.0"
+flask = "^2.0.0" 
+flask-cors = "^3.0.10"
+matplotlib = "^3.9.3"
+
+[tool.poetry.scripts]
+financial_analyst_crew = "src.main:run"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
