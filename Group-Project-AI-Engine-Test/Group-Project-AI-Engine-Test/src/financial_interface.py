@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List
 from datetime import datetime
 import uuid
 from crew import FinancialAnalystCrew
@@ -15,23 +15,21 @@ class TimeFrameConfig:
         "6M": 180,
         "1Y": 365
     }
-    DEFAULT_TIMEFRAME = "1M"
 
 class FinancialInterface:
     def __init__(self):
-        self.price_predictions = PricePredictions()
         self.db = Database()
+        self.price_predictions = PricePredictions(self.db)
         self.supported_timeframes = TimeFrameConfig.VALID_TIMEFRAMES
 
     def request_analysis(self, asset_name: str, llm_choice: str, client_type: str) -> Dict:
-        """Request a new analysis following the collection structure"""
         try:
             if client_type != 'mobile':
                 raise ValueError("Analysis only available for mobile clients")
 
             job_id = str(uuid.uuid4())
             logging.info(f"Starting analysis for job {job_id}, asset: {asset_name}")
-            
+
             crew = FinancialAnalystCrew(job_id=job_id, asset_name=asset_name, llm_choice=llm_choice)
             crew.setup_crew()
             analysis_result = crew.kickoff()
@@ -47,12 +45,6 @@ class FinancialInterface:
                     'tools_used': ['YahooFinance', 'WebSearch'],
                     'analysis_type': 'full_analysis'
                 },
-                'agent_processing': {
-                    'researcher_complete': True,
-                    'accountant_complete': True,
-                    'recommender_complete': True,
-                    'blogger_complete': True
-                },
                 'research_findings': analysis_result.get('data', {}).get('research_findings', {}),
                 'final_report': {
                     'executive_summary': analysis_result.get('data', {}).get('executive_summary', ''),
@@ -62,7 +54,7 @@ class FinancialInterface:
 
             logging.info(f"Storing analysis report for {asset_name}")
             report_id = self.db.store_analysis_report(asset_name, full_analysis_report)
-            
+
             if not report_id or report_id.startswith('Error'):
                 raise Exception(f"Failed to store report: {report_id}")
 
@@ -76,7 +68,6 @@ class FinancialInterface:
             return {"status": "error", "message": str(e)}
 
     def get_analysis_report(self, report_id: str, client_type: str) -> Dict:
-        """Retrieve analysis report"""
         try:
             if client_type != 'mobile':
                 raise ValueError("Analysis only available for mobile clients")
@@ -85,7 +76,6 @@ class FinancialInterface:
             if not report:
                 return {"status": "error", "message": "Report not found"}
 
-            #
             return {
                 "status": "success",
                 "report_id": report_id,
@@ -94,44 +84,32 @@ class FinancialInterface:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-
-def _generate_prediction(self, asset_name: str, days_ahead: int) -> Dict:
-        """Generate prediction for specific asset and timeframe"""
+    def _generate_prediction(self, asset_name: str, days_ahead: int) -> Dict:
         try:
-            prediction_result = self.price_predictions.predictions(
-                asset=asset_name,
-                prediction_timeframe=days_ahead
-            )
-            
+            prediction_result = self.price_predictions.predict(asset_name)  # Adjusted as needed
             if prediction_result is None:
                 return None
 
             return {
-                'values': prediction_result['Predictions'].tolist(),
-                'dates': [d.strftime('%Y-%m-%d') for d in prediction_result['Dates']],
+                'values': prediction_result['predicted_price'],  # Adjust based on returned structure
+                'dates': [d.strftime('%Y-%m-%d') for d in prediction_result['dates']],  # Modify if necessary
                 'confidence_intervals': self._calculate_confidence_intervals(prediction_result)
             }
         except Exception as e:
             logging.error(f"Error generating prediction: {str(e)}", exc_info=True)
             return None
 
-def get_single_prediction(
-        self, 
-        asset_name: str, 
-        timeframe: str = "1M",
-        include_all_timeframes: bool = False
-    ) -> Dict:
-        """Get price prediction for a single asset"""
+    def get_single_prediction(self, asset_name: str, timeframe: str = "1M", include_all_timeframes: bool = False) -> Dict:
         try:
             if timeframe not in self.supported_timeframes:
                 raise ValueError(f"Invalid timeframe. Supported timeframes: {list(self.supported_timeframes.keys())}")
 
             days_ahead = self.supported_timeframes[timeframe]
-            
+            predictions = {}
+
             if include_all_timeframes:
-                predictions = {}
-                for tf, days in self.supported_timeframes.items():
-                    prediction_result = self._generate_prediction(asset_name, days)
+                for tf in self.supported_timeframes.keys():
+                    prediction_result = self._generate_prediction(asset_name, self.supported_timeframes[tf])
                     if prediction_result:
                         predictions[tf] = prediction_result
             else:
@@ -141,7 +119,6 @@ def get_single_prediction(
             if not predictions:
                 return {}
 
-            
             prediction_data = {
                 'predictions': predictions,
                 'metadata': {
@@ -150,7 +127,7 @@ def get_single_prediction(
                     'model_version': self.price_predictions.get_model_version()
                 }
             }
-            
+
             prediction_id = self.db.store_price_predictions(
                 asset_name=asset_name,
                 predictions=prediction_data,
@@ -169,26 +146,14 @@ def get_single_prediction(
             logging.error(f"Failed to get prediction for {asset_name}: {str(e)}", exc_info=True)
             raise
 
-
-    def get_multiple_predictions(
-        self, 
-        asset_list: List[str], 
-        timeframe: str = "1M",
-        include_all_timeframes: bool = False
-    ) -> Dict:
-        """Get predictions for multiple assets"""
+    def get_multiple_predictions(self, asset_list: List[str], timeframe: str = "1M", include_all_timeframes: bool = False) -> Dict:
         try:
             predictions = {}
             for asset in asset_list:
-                prediction = self.get_single_prediction(
-                    asset, 
-                    timeframe,
-                    include_all_timeframes
-                )
+                prediction = self.get_single_prediction(asset, timeframe, include_all_timeframes)
                 if prediction:
                     predictions[asset] = prediction
 
-            
             market_analysis = self._generate_market_analysis(predictions)
 
             result = {
@@ -203,10 +168,10 @@ def get_single_prediction(
                 }
             }
 
-            
             self.db.store_multiple_predictions(result, timeframe)
 
             return result
         except Exception as e:
             logging.error(f"Failed to get multiple predictions: {str(e)}", exc_info=True)
             raise
+
