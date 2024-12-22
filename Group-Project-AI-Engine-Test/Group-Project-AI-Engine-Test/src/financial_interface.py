@@ -6,10 +6,22 @@ from PricePredictions import PricePredictions
 from database import Database
 import logging
 
+class TimeFrameConfig:
+    VALID_TIMEFRAMES = {
+        "1W": 7,
+        "2W": 14,
+        "1M": 30,
+        "3M": 90,
+        "6M": 180,
+        "1Y": 365
+    }
+    DEFAULT_TIMEFRAME = "1M"
+
 class FinancialInterface:
     def __init__(self):
         self.price_predictions = PricePredictions()
         self.db = Database()
+        self.supported_timeframes = TimeFrameConfig.VALID_TIMEFRAMES
 
     def request_analysis(self, asset_name: str, llm_choice: str, client_type: str) -> Dict:
         """Request a new analysis following the collection structure"""
@@ -82,30 +94,67 @@ class FinancialInterface:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def get_single_prediction(self, asset_name: str, timeframe: int = 30) -> Dict:
-        """Get price prediction for a single asset"""
+
+def _generate_prediction(self, asset_name: str, days_ahead: int) -> Dict:
+        """Generate prediction for specific asset and timeframe"""
         try:
-            
             prediction_result = self.price_predictions.predictions(
                 asset=asset_name,
-                prediction_timeframe=timeframe
+                prediction_timeframe=days_ahead
             )
             
             if prediction_result is None:
+                return None
+
+            return {
+                'values': prediction_result['Predictions'].tolist(),
+                'dates': [d.strftime('%Y-%m-%d') for d in prediction_result['Dates']],
+                'confidence_intervals': self._calculate_confidence_intervals(prediction_result)
+            }
+        except Exception as e:
+            logging.error(f"Error generating prediction: {str(e)}", exc_info=True)
+            return None
+
+def get_single_prediction(
+        self, 
+        asset_name: str, 
+        timeframe: str = "1M",
+        include_all_timeframes: bool = False
+    ) -> Dict:
+        """Get price prediction for a single asset"""
+        try:
+            if timeframe not in self.supported_timeframes:
+                raise ValueError(f"Invalid timeframe. Supported timeframes: {list(self.supported_timeframes.keys())}")
+
+            days_ahead = self.supported_timeframes[timeframe]
+            
+            if include_all_timeframes:
+                predictions = {}
+                for tf, days in self.supported_timeframes.items():
+                    prediction_result = self._generate_prediction(asset_name, days)
+                    if prediction_result:
+                        predictions[tf] = prediction_result
+            else:
+                prediction_result = self._generate_prediction(asset_name, days_ahead)
+                predictions = {timeframe: prediction_result} if prediction_result else {}
+
+            if not predictions:
                 return {}
 
-           
+            
             prediction_data = {
-                'predictions': prediction_result['Predictions'].tolist(),
-                'dates': [d.strftime('%Y-%m-%d') for d in prediction_result['Dates']],
-                'timeframe': timeframe,
-                'timestamp': datetime.now()
+                'predictions': predictions,
+                'metadata': {
+                    'timeframes': list(predictions.keys()),
+                    'generated_at': datetime.now().isoformat(),
+                    'model_version': self.price_predictions.get_model_version()
+                }
             }
             
-           
             prediction_id = self.db.store_price_predictions(
                 asset_name=asset_name,
-                prediction=prediction_data
+                predictions=prediction_data,
+                timeframe=timeframe
             )
 
             return {
@@ -113,25 +162,51 @@ class FinancialInterface:
                 "prediction_id": prediction_id,
                 "timestamp": datetime.now().isoformat(),
                 "timeframe": timeframe,
-                "predictions": prediction_result['Predictions'].tolist(),
-                "dates": [d.strftime('%Y-%m-%d') for d in prediction_result['Dates']]
+                "predictions": predictions,
+                "metadata": prediction_data['metadata']
             }
         except Exception as e:
-            raise Exception(f"Failed to get prediction for {asset_name}: {str(e)}")
+            logging.error(f"Failed to get prediction for {asset_name}: {str(e)}", exc_info=True)
+            raise
 
-    def get_multiple_predictions(self, asset_list: List[str], timeframe: int = 30) -> Dict:
+
+    def get_multiple_predictions(
+        self, 
+        asset_list: List[str], 
+        timeframe: str = "1M",
+        include_all_timeframes: bool = False
+    ) -> Dict:
         """Get predictions for multiple assets"""
         try:
             predictions = {}
             for asset in asset_list:
-                prediction = self.get_single_prediction(asset, timeframe)
+                prediction = self.get_single_prediction(
+                    asset, 
+                    timeframe,
+                    include_all_timeframes
+                )
                 if prediction:
                     predictions[asset] = prediction
 
-            return {
+            
+            market_analysis = self._generate_market_analysis(predictions)
+
+            result = {
                 "timestamp": datetime.now().isoformat(),
                 "timeframe": timeframe,
-                "predictions": predictions
+                "predictions": predictions,
+                "market_analysis": market_analysis,
+                "metadata": {
+                    "assets_analyzed": len(predictions),
+                    "success_rate": len(predictions) / len(asset_list) if asset_list else 0,
+                    "timeframes_included": ["1M"] if not include_all_timeframes else list(self.supported_timeframes.keys())
+                }
             }
+
+            
+            self.db.store_multiple_predictions(result, timeframe)
+
+            return result
         except Exception as e:
-            raise Exception(f"Failed to get multiple predictions: {str(e)}")
+            logging.error(f"Failed to get multiple predictions: {str(e)}", exc_info=True)
+            raise
