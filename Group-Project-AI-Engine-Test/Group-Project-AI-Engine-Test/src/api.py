@@ -79,127 +79,44 @@ def health_check():
         return jsonify({'status': 'unhealthy'}), HTTPStatus.SERVICE_UNAVAILABLE
 
 @app.route('/api/analysis', methods=['POST'])
-@log_request
 def request_analysis():
-    """Endpoint to request a new financial analysis"""
-    try:
-        data = request.json
-        if not data:
-            raise APIError("No JSON data provided", HTTPStatus.BAD_REQUEST)
-        
-        logger.debug(f"Analysis request received for data: {data}")
-        
-        if 'asset_name' not in data:
-            raise APIError("Missing asset_name in request", HTTPStatus.BAD_REQUEST)
-        
-        client_type = request.args.get('client_type')
-        if not client_type in ['mobile', 'web']:
-            raise APIError('Invalid client type', HTTPStatus.BAD_REQUEST)
-            
-        if client_type == 'web':
-            raise APIError('Analysis not available for web clients', HTTPStatus.FORBIDDEN)
-            
-        llm_choice = data.get('llm_choice', 'groq')
-        
-        result = interface.request_analysis(
-            asset_name=data['asset_name'],
-            llm_choice=llm_choice,
-            client_type=client_type
-        )
-        
-        logger.info(f"Analysis completed successfully for asset: {data['asset_name']}")
-        return jsonify(result), HTTPStatus.OK
-    
-    except Exception as e:
-        logger.error(f"Error in analysis request: {str(e)}", exc_info=True)
-        raise APIError(str(e), HTTPStatus.INTERNAL_SERVER_ERROR)
-
-@app.route('/api/analysis/<report_id>', methods=['GET'])
-@log_request
-def get_analysis_report(report_id):
-    """Endpoint to retrieve analysis report (mobile only, final report only)"""
-    try:
-        client_type = request.headers.get('X-Client-Type')
-        logger.debug(f"Report request received for ID: {report_id}, Client: {client_type}")
-        
-        if not client_type or client_type not in ['mobile', 'web']:
-            raise APIError("Invalid client type", HTTPStatus.BAD_REQUEST)
-        
-        if client_type == 'web':
-            raise APIError("Analysis not available for web clients", HTTPStatus.FORBIDDEN)
-        
-        result = interface.get_analysis_report(report_id, client_type)
-        if result['status'] == 'error':
-            raise APIError(result['message'], HTTPStatus.NOT_FOUND)
-            
-        logger.info(f"Report retrieved successfully for ID: {report_id}")
-        return jsonify({
-            "status": "success",
-            "report_id": result['report_id'],
-            "final_report": result['final_report']
-        }), HTTPStatus.OK
-        
-    except Exception as e:
-        logger.error(f"Error retrieving report {report_id}: {str(e)}", exc_info=True)
-        raise APIError(str(e), HTTPStatus.INTERNAL_SERVER_ERROR)
-
-@app.route('/api/predictions/<asset_name>', methods=['GET'])
-@log_request
-def get_prediction(asset_name):
-    """Endpoint for single asset prediction"""
-    try:
-        timeframe = request.args.get('timeframe', default="1M")
-        include_all_timeframes = request.args.get('include_all_timeframes', 
-                                                default='false').lower() == 'true'
-        
-        logger.debug(f"Prediction request for asset: {asset_name}, "
-                    f"timeframe: {timeframe}, all_timeframes: {include_all_timeframes}")
-        
-        prediction = interface.get_single_prediction(
-            asset_name, 
-            timeframe=timeframe,
-            include_all_timeframes=include_all_timeframes
-        )
-        
-        if prediction is None:
-            raise APIError(f"No prediction available for {asset_name}", 
-                         HTTPStatus.NOT_FOUND)
-        
-        logger.info(f"Prediction completed for asset: {asset_name}")
-        return jsonify(prediction), HTTPStatus.OK
-        
-    except Exception as e:
-        logger.error(f"Error in prediction for {asset_name}: {str(e)}", 
-                    exc_info=True)
-        raise APIError(str(e), HTTPStatus.INTERNAL_SERVER_ERROR)
-        
-@app.route('/api/predictions/multiple', methods=['POST'])
-@log_request
-def get_multiple_predictions():
-    """Endpoint for multiple asset predictions"""
+    """Endpoint to request analysis."""
     try:
         data = request.get_json()
-        if not data or 'assets' not in data:
-            raise APIError('Missing assets list', HTTPStatus.BAD_REQUEST)
-        
-        timeframe = data.get('timeframe', "1M")
-        include_all_timeframes = data.get('include_all_timeframes', False)
-        
-        logger.debug(f"Multiple predictions request received for assets: {data['assets']}, "
-                    f"timeframe: {timeframe}, all_timeframes: {include_all_timeframes}")
-        
-        predictions = interface.get_multiple_predictions(
-            assets=data['assets'],
-            timeframe=timeframe,
-            include_all_timeframes=include_all_timeframes
-        )
-        
-        logger.info(f"Multiple predictions completed for {len(data['assets'])} assets")
-        return jsonify(predictions), HTTPStatus.OK
-        
+        asset_name = data.get("asset_name")
+        llm_choice = data.get("llm_choice")
+        client_type = data.get("client_type")
+
+        result = financial_interface.request_analysis(asset_name, llm_choice, client_type)
+        return jsonify(result), 200 if result["status"] == "success" else 400
     except Exception as e:
-        logger.error(f"Error in multiple predictions: {str(e)}", exc_info=True)
-        raise APIError(str(e), HTTPStatus.INTERNAL_SERVER_ERROR)
+        logging.error(f"Error in request_analysis: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/get_analysis_report/<report_id>', methods=['GET'])
+def get_analysis_report(report_id):
+    """Endpoint to retrieve analysis report."""
+    client_type = request.args.get('client_type', 'mobile')  # Example usage
+    result = financial_interface.get_analysis_report(report_id, client_type)
+    return jsonify(result), 200 if result["status"] == "success" else 400
+
+@app.route('/api/predictions/single/<asset_name>', methods=['GET'])
+def get_single_prediction(asset_name):
+    """Endpoint to get price prediction for a single asset."""
+    timeframe = request.args.get('timeframe', '1M')
+    include_all_timeframes = request.args.get('include_all_timeframes', 'false').lower() == 'true'
+    result = financial_interface.get_single_prediction(asset_name, timeframe, include_all_timeframes)
+    return jsonify(result), 200 if result else 400
+
+@app.route('/api/predictions/multiple', methods=['POST'])
+def get_multiple_predictions():
+    """Endpoint to get predictions for multiple assets."""
+    data = request.get_json()
+    asset_list = data.get('assets', [])
+    timeframe = data.get('timeframe', '1M')
+    include_all_timeframes = data.get('include_all_timeframes', False)
+    result = financial_interface.get_multiple_predictions(asset_list, timeframe, include_all_timeframes)
+    return jsonify(result), 200 if result else 400
 
 @app.route('/api/predictions/timeframes', methods=['GET'])
 @log_request
