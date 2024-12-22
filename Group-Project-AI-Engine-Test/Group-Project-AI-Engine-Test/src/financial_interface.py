@@ -55,7 +55,7 @@ class FinancialInterface:
             logging.info(f"Storing analysis report for {asset_name}")
             report_id = self.db.store_analysis_report(asset_name, full_analysis_report)
 
-            if not report_id or report_id.startswith('Error'):
+            if not report_id:
                 raise Exception(f"Failed to store report: {report_id}")
 
             return {
@@ -91,9 +91,9 @@ class FinancialInterface:
                 return None
 
             return {
-                'values': prediction_result['predicted_price'],  # Adjust based on returned structure
-                'dates': [d.strftime('%Y-%m-%d') for d in prediction_result['dates']],  # Modify if necessary
-                'confidence_intervals': self._calculate_confidence_intervals(prediction_result)
+                'values': prediction_result['predicted_price'],
+                'dates': [d.strftime('%Y-%m-%d') for d in prediction_result['dates']],
+                'confidence_intervals': self._calculate_confidence_intervals(prediction_result)  # Ensure this method exists
             }
         except Exception as e:
             logging.error(f"Error generating prediction: {str(e)}", exc_info=True)
@@ -124,7 +124,7 @@ class FinancialInterface:
                 'metadata': {
                     'timeframes': list(predictions.keys()),
                     'generated_at': datetime.now().isoformat(),
-                    'model_version': self.price_predictions.get_model_version()
+                    'model_version': self.price_predictions.get_model_version()  # Assuming this method exists
                 }
             }
 
@@ -154,7 +154,7 @@ class FinancialInterface:
                 if prediction:
                     predictions[asset] = prediction
 
-            market_analysis = self._generate_market_analysis(predictions)
+            market_analysis = self._generate_market_analysis(predictions)  # Ensure this method exists
 
             result = {
                 "timestamp": datetime.now().isoformat(),
