@@ -1,0 +1,148 @@
+research_stock_task:
+  description: >
+    Gather and analyze comprehensive data on {asset_name}. Include:
+      1. Data from a minimum of four reliable and accredited sources
+      2. Current and historical price data
+      3. Market trends and patterns
+      4. News and sentiment analysis 
+      5. Company fundamentals (for stocks) or blockchain metrics (for crypto)
+      6. Key competitors and market positioning
+      7. Source citations
+
+  expected_output: >
+    A comprehensive compilation of findings in a structured dictionary matching the research_findings schema: {
+      "research_findings": {
+        "data_sources": ["source1", "source2"],
+        "price_data": {
+          "current": float,
+          "historical_summary": "string"
+        },
+        "market_trends": "string",
+        "news_analysis": {
+          "latest_news": ["string"],
+          "sentiment": "string"
+        },
+        "company_fundamentals": "string",
+        "competitor_analysis": "string",
+        "sources": ["citation1", "citation2"]
+      }
+    }
+
+analyze_stock_task:
+  description: >
+    Using the research data, calculate and interpret the following financial metrics for {asset_name}:
+      1. Profitability Ratios
+      2. Liquidity Ratios for stocks or on-chain metrics for crypto
+      3. Solvency Ratios
+      4. Efficiency Ratios
+      5. Market Value Ratios
+      6. Growth Metrics
+    Include possible red flags or potential pitfalls 
+    Show historical trends 
+
+  expected_output: >
+    A detailed summary of these metrics and what they indicate about the specified asset in a structured dictionary matching the financial_analysis schema: {
+      "financial_analysis": {
+        "profitability_ratios": {
+          "metrics": {
+            "return_on_equity": float,
+            "return_on_assets": float,
+            "profit_margin": float,
+            "operating_margin": float,
+            "gross_margin": float
+          },
+          "analysis": "string"
+        },
+        "liquidity_ratios": {
+          "metrics": {
+            "current_ratio": float,
+            "quick_ratio": float,
+            "cash_ratio": float,
+            "working_capital": float
+          },
+          "analysis": "string"
+        },
+        "solvency_ratios": {
+          "metrics": {
+            "debt_to_equity": float,
+            "debt_to_assets": float,
+            "interest_coverage": float,
+            "equity_multiplier": float
+          },
+          "analysis": "string"
+        },
+        "efficiency_ratios": {
+          "metrics": {
+            "asset_turnover": float,
+            "inventory_turnover": float,
+            "receivables_turnover": float,
+            "days_sales_outstanding": float
+          },
+          "analysis": "string"
+        },
+        "market_value_ratios": {
+          "metrics": {
+            "pe_ratio": float,
+            "price_to_book": float,
+            "dividend_yield": float,
+            "market_cap": float
+          },
+          "analysis": "string"
+        },
+        "growth_metrics": {
+          "metrics": {
+            "revenue_growth": float,
+            "earnings_growth": float,
+            "dividend_growth": float,
+            "asset_growth": float
+          },
+          "analysis": "string"
+        },
+        "risks": ["string"],
+        "historical_trends": "string",
+        "summary": "string"
+      }
+    }
+
+make_decision_task:
+  description: >
+    Based on the research and financial analysis, generate a buy, sell, or hold recommendation for {asset_name}. Your task should:
+      1. Evaluate all data from the research and accounting tasks
+      2. Compare current metrics to historical averages and industry benchmarks
+      3. Assess risk factors and potential rewards
+      4. Consider current market conditions and economic indicators
+      5. Provide a clear recommendation with supporting rationale
+      6. Include a confidence level for your recommendation
+
+  expected_output: >
+    A detailed and well-informed recommendation in a structured dictionary matching the recommendation schema: {
+      "recommendation": {
+        "decision": "string",
+        "confidence_level": float,
+        "rationale": "string",
+        "risk_factors": ["string"]
+      }
+    }
+
+output_task:
+  description: >
+     Create a well-formatted, engaging report summarizing the findings and recommendation for {asset_name}. Your report should:
+      1. Synthesize information from all previous tasks (research, accounting, and recommendation)
+      2. Have clear sections: Overview, Research Findings, Financial Analysis, and Recommendation
+      3. Use bullet points, tables, or charts to present data clearly
+      4. Include relevant disclaimers or risk warnings
+      5. Provide a concise executive summary
+
+  expected_output: >
+    A comprehensive yet concise report with necessary information in a structured dictionary matching the final_report schema: {
+      "final_report": {
+        "executive_summary": "string",
+        "sections": {
+          "overview": "string",
+          "research_findings": "string",
+          "financial_analysis": "string",
+          "recommendation": "string"
+        },
+        "disclaimers": ["string"]
+      }
+    }
