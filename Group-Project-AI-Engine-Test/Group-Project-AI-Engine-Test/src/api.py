@@ -148,20 +148,31 @@ def get_analysis_report(report_id):
 def get_prediction(asset_name):
     """Endpoint for single asset prediction"""
     try:
-        timeframe = request.args.get('timeframe', default=30, type=int)
-        logger.debug(f"Prediction request for asset: {asset_name}, timeframe: {timeframe}")
+        timeframe = request.args.get('timeframe', default="1M")
+        include_all_timeframes = request.args.get('include_all_timeframes', 
+                                                default='false').lower() == 'true'
         
-        prediction = interface.get_single_prediction(asset_name, timeframe)
+        logger.debug(f"Prediction request for asset: {asset_name}, "
+                    f"timeframe: {timeframe}, all_timeframes: {include_all_timeframes}")
+        
+        prediction = interface.get_single_prediction(
+            asset_name, 
+            timeframe=timeframe,
+            include_all_timeframes=include_all_timeframes
+        )
+        
         if prediction is None:
-            raise APIError(f"No prediction available for {asset_name}", HTTPStatus.NOT_FOUND)
+            raise APIError(f"No prediction available for {asset_name}", 
+                         HTTPStatus.NOT_FOUND)
         
         logger.info(f"Prediction completed for asset: {asset_name}")
         return jsonify(prediction), HTTPStatus.OK
         
     except Exception as e:
-        logger.error(f"Error in prediction for {asset_name}: {str(e)}", exc_info=True)
+        logger.error(f"Error in prediction for {asset_name}: {str(e)}", 
+                    exc_info=True)
         raise APIError(str(e), HTTPStatus.INTERNAL_SERVER_ERROR)
-
+        
 @app.route('/api/predictions/multiple', methods=['POST'])
 @log_request
 def get_multiple_predictions():
@@ -171,16 +182,42 @@ def get_multiple_predictions():
         if not data or 'assets' not in data:
             raise APIError('Missing assets list', HTTPStatus.BAD_REQUEST)
         
-        logger.debug(f"Multiple predictions request received for assets: {data['assets']}")
+        timeframe = data.get('timeframe', "1M")
+        include_all_timeframes = data.get('include_all_timeframes', False)
         
-        timeframe = data.get('timeframe', 30)
-        predictions = interface.get_multiple_predictions(data['assets'], timeframe)
+        logger.debug(f"Multiple predictions request received for assets: {data['assets']}, "
+                    f"timeframe: {timeframe}, all_timeframes: {include_all_timeframes}")
+        
+        predictions = interface.get_multiple_predictions(
+            assets=data['assets'],
+            timeframe=timeframe,
+            include_all_timeframes=include_all_timeframes
+        )
         
         logger.info(f"Multiple predictions completed for {len(data['assets'])} assets")
         return jsonify(predictions), HTTPStatus.OK
         
     except Exception as e:
         logger.error(f"Error in multiple predictions: {str(e)}", exc_info=True)
+        raise APIError(str(e), HTTPStatus.INTERNAL_SERVER_ERROR)
+
+@app.route('/api/predictions/timeframes', methods=['GET'])
+@log_request
+def get_available_timeframes():
+    """Endpoint to get supported prediction timeframes"""
+    try:
+        timeframes = TimeFrame.get_supported_timeframes()
+        return jsonify({
+            'status': 'success',
+            'timeframes': {
+                key: {
+                    'days': value,
+                    'description': f"{key} prediction"
+                } for key, value in timeframes.items()
+            }
+        }), HTTPStatus.OK
+    except Exception as e:
+        logger.error(f"Error getting timeframes: {str(e)}", exc_info=True)
         raise APIError(str(e), HTTPStatus.INTERNAL_SERVER_ERROR)
 
 if __name__ == '__main__':
