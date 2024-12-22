@@ -35,20 +35,62 @@ class Database:
             logging.error(f'Error storing analysis report for {asset_name}: {str(e)}')
             raise  # Change this to raise the exception instead of returning a string
 
-    def store_price_predictions(self, asset_name: str, prediction: dict) -> str:
+def store_price_predictions(
+        self, 
+        asset_name: str, 
+        predictions: dict,
+        timeframe: str = "1M"
+    ) -> str:
         try:
             doc_ref = self.db.collection('price_predictions').document()
-            prediction.update({
+            
+           
+            prediction_data = {
                 'asset_name': asset_name,
                 'timestamp': datetime.now().isoformat(),
-                'prediction_id': doc_ref.id
-            })
-            doc_ref.set(prediction)
+                'prediction_id': doc_ref.id,
+                'timeframe': timeframe,
+                'predictions': predictions,
+                'metadata': {
+                    'last_updated': datetime.now().isoformat(),
+                    'status': 'active'
+                }
+            }
+            
+            doc_ref.set(prediction_data)
             logging.info(f'Stored price predictions for {asset_name} with ID: {doc_ref.id}')
             return doc_ref.id
         except Exception as e:
             logging.error(f'Error storing price predictions for {asset_name}: {str(e)}')
-            return 'Error storing price predictions'
+            raise
+
+def store_multiple_predictions(
+        self, 
+        predictions: Dict[str, dict],
+        timeframe: str = "1M"
+    ) -> str:
+        try:
+            doc_ref = self.db.collection('multiple_predictions').document()
+            
+            
+            prediction_data = {
+                'prediction_id': doc_ref.id,
+                'timestamp': datetime.now().isoformat(),
+                'timeframe': timeframe,
+                'predictions': predictions,
+                'metadata': {
+                    'asset_count': len(predictions),
+                    'last_updated': datetime.now().isoformat(),
+                    'status': 'active'
+                }
+            }
+            
+            doc_ref.set(prediction_data)
+            logging.info(f'Stored multiple predictions with ID: {doc_ref.id}')
+            return doc_ref.id
+        except Exception as e:
+            logging.error(f'Error storing multiple predictions: {str(e)}')
+            raise
 
     def get_historical_data(self, asset_name: str, limit: int = 100) -> list:
         try:
@@ -108,3 +150,57 @@ class Database:
         except Exception as e:
             logging.error(f"Firebase connection test failed: {str(e)}")
             return False
+
+    def get_latest_prediction(
+        self, 
+        asset_name: str,
+        timeframe: str = "1M"
+    ) -> Optional[Dict[str, Any]]:
+        """Get the most recent prediction for an asset."""
+        try:
+           
+            docs = (self.db.collection('price_predictions')
+                   .where('asset_name', '==', asset_name)
+                   .where('timeframe', '==', timeframe)
+                   .order_by('timestamp', direction='desc')
+                   .limit(1)
+                   .stream())
+            
+            for doc in docs:
+                return doc.to_dict()
+            
+            return None
+        except Exception as e:
+            logging.error(f'Error getting latest prediction for {asset_name}: {str(e)}')
+            return None
+
+def get_multiple_predictions_by_id(
+        self, 
+        prediction_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Retrieve multiple predictions by ID."""
+        try:
+            return self._get_document('multiple_predictions', prediction_id)
+        except Exception as e:
+            logging.error(f'Error retrieving multiple predictions with ID {prediction_id}: {str(e)}')
+            return None
+
+    def get_predictions_by_timeframe(
+        self,
+        asset_name: str,
+        timeframe: str,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """Get historical predictions for a specific timeframe."""
+        try:
+            docs = (self.db.collection('price_predictions')
+                   .where('asset_name', '==', asset_name)
+                   .where('timeframe', '==', timeframe)
+                   .order_by('timestamp', direction='desc')
+                   .limit(limit)
+                   .stream())
+            
+            return [doc.to_dict() for doc in docs]
+        except Exception as e:
+            logging.error(f'Error getting predictions for {asset_name}: {str(e)}')
+            return []
